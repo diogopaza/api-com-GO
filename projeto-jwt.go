@@ -1,5 +1,15 @@
 //https://auth0.com/blog/authentication-in-golang/#Building-an-API-in-Go
 
+https://gopher.pro.br/post/middleware-em-golang/
+
+https://www.sohamkamani.com/blog/golang/2019-01-01-jwt-authentication/
+
+http://www.nikola-breznjak.com/blog/go/jwt-authentication-angular-application-go-backend/
+
+https://medium.com/engineerbabu/angular-authentication-using-jwt-d846c5ce0ac6
+
+
+
 package main
 
 import(
@@ -68,7 +78,16 @@ var addFeedbackHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 
 var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
-	w.Write([]byte(myKey))
+	toke := jwt.New(jwt.SigningMethodHS256)
+
+	claims["admin"]=true
+	claims["name"]="Ado Kubic"
+	claims["exp"]=time.Now().Add(time.Hour * 24).Unix()
+
+	tokenString, _:= token.SignedString(myKey)
+
+	w.Write([byte]tokenString)
+
 
 })
 
