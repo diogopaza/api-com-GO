@@ -1,15 +1,3 @@
-//https://auth0.com/blog/authentication-in-golang/#Building-an-API-in-Go
-
-//https://gopher.pro.br/post/middleware-em-golang/
-
-//https://www.sohamkamani.com/blog/golang/2019-01-01-jwt-authentication/
-
-//http://www.nikola-breznjak.com/blog/go/jwt-authentication-angular-application-go-backend/
-
-//https://medium.com/engineerbabu/angular-authentication-using-jwt-d846c5ce0ac6
-
-
-
 package main
 
 import(
@@ -17,7 +5,7 @@ import(
 	"net/http"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"fmt"
+	
 	"os"
 	"encoding/json"
 )
@@ -63,17 +51,26 @@ var productHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 
 var addFeedbackHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 	
-
-	//var product Product
+	var product Product
 	vars := mux.Vars(r)
 	slug := vars["slug"]
+	for _, p := range products{
+		if p.Slug == slug{
+			product = p
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(product)
+		}else{
+			w.Write([]byte("Não"))
+			
+		}
+		
 
-	fmt.Println(slug)
+	}
 
+	
 	/*
 	decoder := json.NewDecoder(r.Body)
-	var product Product
-
+	
 	err := decoder.Decode(&product)
 	if err != nil{
 		panic(err)
@@ -100,13 +97,13 @@ var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 
 })
 */
-	
+/*	
 var getId = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
 
 
 })
-
+*/
 
 func main(){
 
@@ -115,7 +112,7 @@ func main(){
 	r.Handle("/status", statusHandler).Methods("GET")
 	r.Handle("/products", productHandler).Methods("GET")
 	r.Handle("/products/{slug}/feedback", addFeedbackHandler).Methods("POST")
-	r.Handle("/products/{id}", getId).Methods("GET")
+	//r.Handle("/products/{id}", getId).Methods("GET")
 	r.Handle("/", http.FileServer(http.Dir("./views/")))
 	//r.Handle("/get-token", getTokenHandler).Methods("GET")
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("/static/"))))

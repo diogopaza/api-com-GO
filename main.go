@@ -7,7 +7,14 @@ import(
 	"net/http"
 	"log"
 	"io/ioutil"
+	
 )
+
+type User struct{
+
+	Name string
+	Password string
+}
 
 var users = []User{
 
@@ -18,11 +25,7 @@ var users = []User{
 
 }
 
-type User struct{
 
-	Name string
-	Password string
-}
 
 
 func getUser(w http.ResponseWriter, r *http.Request){
