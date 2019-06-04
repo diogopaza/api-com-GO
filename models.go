@@ -1,8 +1,7 @@
 package models
 
-
 type User struct{
 
 	Name string
-	pass string
+	Password string
 }
