@@ -5,9 +5,11 @@ import(
 	"net/http"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	
+	"github.com/dgrijalva/jwt-go"
 	"os"
 	"encoding/json"
+	"time"
+
 )
 
 type Product struct{
@@ -81,30 +83,23 @@ var addFeedbackHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 	*/
 })
 
-/*
+
 var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
-	toke := jwt.New(jwt.SigningMethodHS256)
-
+	token := jwt.New(jwt.SigningMethodHS256)
+	
+	claims := token.Claims.(jwt.MapClaims)
 	claims["admin"]=true
-	claims["name"]="Ado Kubic"
+	claims["name"]="Diogo Paza"
 	claims["exp"]=time.Now().Add(time.Hour * 24).Unix()
-
-	tokenString, _:= token.SignedString(myKey)
-
-	w.Write([byte]tokenString)
-
-
-})
-*/
-/*	
-var getId = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
-
+	
+	tokenString, _ := token.SignedString(myKey)
+	w.Write([]byte(tokenString))
 
 
 })
-*/
 
+	
 func main(){
 
 	r := mux.NewRouter()
@@ -114,7 +109,7 @@ func main(){
 	r.Handle("/products/{slug}/feedback", addFeedbackHandler).Methods("POST")
 	//r.Handle("/products/{id}", getId).Methods("GET")
 	r.Handle("/", http.FileServer(http.Dir("./views/")))
-	//r.Handle("/get-token", getTokenHandler).Methods("GET")
+	r.Handle("/get-token", getTokenHandler).Methods("GET")
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("/static/"))))
 	
 	
