@@ -9,6 +9,7 @@ import(
 	"os"
 	"encoding/json"
 	"time"
+	"github.com/auth0/go-jwt-middleware"
 
 )
 
@@ -99,13 +100,20 @@ var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 
 })
 
+var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
+	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
+	  return myKey, nil
+	},
+	SigningMethod: jwt.SigningMethodHS256,
+  })
+
 	
 func main(){
 
 	r := mux.NewRouter()
 	
 	r.Handle("/status", statusHandler).Methods("GET")
-	r.Handle("/products", productHandler).Methods("GET")
+	r.Handle("/products",jwtMiddleware.Handler(productHandler)).Methods("GET")
 	r.Handle("/products/{slug}/feedback", addFeedbackHandler).Methods("POST")
 	//r.Handle("/products/{id}", getId).Methods("GET")
 	r.Handle("/", http.FileServer(http.Dir("./views/")))
