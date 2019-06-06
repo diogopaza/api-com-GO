@@ -7,7 +7,6 @@ import(
 	"net/http"
 	"log"
 	"encoding/json"
-
 	_ "github.com/lib/pq" //postgresql
 )
 
@@ -48,14 +47,36 @@ func getUsers(w http.ResponseWriter, r *http.Request){
 
 }
 
-/*
-func createUser(login,name,password,token string, profile_id int){
+func getLogin(w http.ResponseWriter, r *http.Request){
 
-	connectingDB:= initDb()
+	connecting:= initDb()
+	var count int
+	var u Users
 
+	r.ParseForm()
+	name := r.Form["user"]
+	password := r.Form["password"]
+	u.NAME = name
+	u.PASSWORD = password
+	fmt.Println(name)
+	fmt.Println(password)
+
+	rowsCount, err:= connecting.Query("SELECT COUNT(*) as count FROM public.user WHERE id=1")
+		if err != nil{
+			w.Header().Set("Content-Type","application/json; charset=UTF-8")
+			w.WriteHeader(400)
+		}
+	for rowsCount.Next(){
+		err:= rowsCount.Scan(&count)
+		if err != nil{
+			w.Header().Set("Content-Type","application/json; charset=UTF-8")
+			w.WriteHeader(400)
+		}
+	}
+
+	
 
 }
-*/
 
 func returnArrayUsers(connecting *sql.DB) ([]Users,error) {
 
@@ -123,8 +144,9 @@ func initDb() *sql.DB{
 func main(){	
 	
 	
-	http.HandleFunc("/users",getUsers)
-	//http.HandleFunc("/users",getUsers)
+	http.HandleFunc("/users", getUsers)
+	http.HandleFunc("/login", getLogin)
+	
 
 	var porta = 8000
 	fmt.Printf("Rodando na %d", porta)
