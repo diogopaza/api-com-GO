@@ -7,6 +7,11 @@ import(
 
 )
 
+type User struct{
+
+	Nome string
+}
+
 
 func getUser(w http.ResponseWriter, r *http.Request){
 	/*
@@ -33,7 +38,7 @@ func getUser(w http.ResponseWriter, r *http.Request){
 func main(){
 
 	http.HandleFunc("/user", getUser)
-	http.HandleFunc("/user/{id}", )
+
 
 	fmt.Println("Rodando na 3000")
 	http.ListenAndServe(":3000", nil)

@@ -5,9 +5,11 @@ import(
 	"fmt"
 	"database/sql"
 	"net/http"
-	"log"
 	"encoding/json"
 	_ "github.com/lib/pq" //postgresql
+	
+	"github.com/gorilla/mux"
+	
 )
 
 
@@ -31,7 +33,7 @@ const(
 	dbname="gestor"
 )
 
-func getUsers(w http.ResponseWriter, r *http.Request){
+var getUsers = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
 	connectingDB:= initDb()
 	myUsers,err := returnArrayUsers(connectingDB)
@@ -45,14 +47,59 @@ func getUsers(w http.ResponseWriter, r *http.Request){
 	
 	
 
-}
+})
 
-func getLogin(w http.ResponseWriter, r *http.Request){
+var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
-	connecting:= initDb()
-	var count int
+	conn:= initDb()
+	
+	var user Users
+	
+	erro := r.ParseForm()
+	if erro != nil{
+		panic(erro)
+	}
+	login := r.FormValue("login")
+	password:= r.FormValue("password")
+	fmt.Println("Variavel do POST: ", login) 
+	
+	sqlQuery := "SELECT id, name, password FROM public.USER WHERE name=$1"
+
+	row := conn.QueryRow(sqlQuery, login)
+
+	err := row.Scan(&user.ID, &user.NAME, &user.PASSWORD)
+
+	if(err!=nil){
+		if(err == sql.ErrNoRows){
+			w.Header().Set("Content-Type","application/json; charset=UTF-8")
+			w.WriteHeader(400)
+			fmt.Println("Usuario não encontrado")
+		}
+	
+		fmt.Println("Erros:%v", err)
+	}else{
+		fmt.Println("Achou o usuario")
+		fmt.Println("ID:"+user.ID)
+		fmt.Println("NAME:"+user.NAME)
+		fmt.Println("PASSWORD:"+user.PASSWORD)
+
+		if(password!=user.PASSWORD){
+			w.Header().Set("Content-Type","application/json; charset=UTF-8")
+			w.WriteHeader(400)
+			fmt.Println("Erro senha incorreta")
+		}else{
+			fmt.Println("Aqui retorna o token")
+		}
+
+	}
+
+
+
+
+	//var count int
+	/*
 	var u Users
-
+	
 	r.ParseForm()
 	name := r.Form["user"]
 	password := r.Form["password"]
@@ -60,12 +107,20 @@ func getLogin(w http.ResponseWriter, r *http.Request){
 	u.PASSWORD = password
 	fmt.Println(name)
 	fmt.Println(password)
+	*/
+	//rowsCount, err:= connecting.Query("SELECT COUNT(*) as count FROM public.user WHERE id=6")
+	
+	//defer rowsCount.Close();
 
-	rowsCount, err:= connecting.Query("SELECT COUNT(*) as count FROM public.user WHERE id=1")
-		if err != nil{
+	/*
+	if err != nil{
 			w.Header().Set("Content-Type","application/json; charset=UTF-8")
 			w.WriteHeader(400)
+			fmt.Println("Erro")
 		}
+
+
+
 	for rowsCount.Next(){
 		err:= rowsCount.Scan(&count)
 		if err != nil{
@@ -73,10 +128,11 @@ func getLogin(w http.ResponseWriter, r *http.Request){
 			w.WriteHeader(400)
 		}
 	}
+	*/
 
 	
 
-}
+})
 
 func returnArrayUsers(connecting *sql.DB) ([]Users,error) {
 
@@ -143,14 +199,12 @@ func initDb() *sql.DB{
 
 func main(){	
 	
+	r := mux.NewRouter()
 	
-	http.HandleFunc("/users", getUsers)
-	http.HandleFunc("/login", getLogin)
+	http.Handle("/", r)
+	r.Handle("/users", getUsers).Methods("GET")
+	r.Handle("/login", getLogin).Methods("POST")
 	
-
-	var porta = 8000
-	fmt.Printf("Rodando na %d", porta)
-	log.Fatal(http.ListenAndServe(
-		fmt.Sprintf(":%d", porta), nil))
+	http.ListenAndServe(":3000", nil)
 
 }
