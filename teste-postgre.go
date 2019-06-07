@@ -51,6 +51,7 @@ var getUsers = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
 var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
+
 	conn:= initDb()
 	
 	var user Users
@@ -88,13 +89,11 @@ var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 			w.WriteHeader(400)
 			fmt.Println("Erro senha incorreta")
 		}else{
+			w.Write([]byte("Retornando token"))
 			fmt.Println("Aqui retorna o token")
 		}
 
 	}
-
-
-
 
 	//var count int
 	/*
@@ -195,6 +194,8 @@ func initDb() *sql.DB{
 	return db
 
 }
+
+
 
 
 func main(){	

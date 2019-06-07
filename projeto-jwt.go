@@ -105,7 +105,7 @@ var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 	  return myKey, nil
 	},
 	SigningMethod: jwt.SigningMethodHS256,
-  })
+})
 
 	
 func main(){
