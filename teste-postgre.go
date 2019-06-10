@@ -7,23 +7,27 @@ import(
 	"net/http"
 	"encoding/json"
 	_ "github.com/lib/pq" //postgresql
-	
+	"github.com/auth0/go-jwt-middleware"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/handlers"
+	"github.com/dgrijalva/jwt-go"
+	"time"
 	
 )
 
-
+var myKey = []byte("secret")
 
 type Users struct{
 
-	ID string
-	LOGIN string
-	NAME string
-	PASSWORD string
-	TOKEN string
-	PROFILE_ID string
+	ID string `json:"id"`
+	LOGIN string `json:"login"`
+	NAME string `json:"nome"`
+	PASSWORD string `json:"password"`
+	TOKEN string `json:"token"`
+	PROFILE_ID string `json:"profileId"`
 	
 }
+
 
 const(
 	host = "localhost"
@@ -49,8 +53,19 @@ var getUsers = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
 })
 
+func setupResponse(w *http.ResponseWriter, req *http.Request) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+    (*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+    (*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
 var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
+	fmt.Println("ENTREI LOGIN")
+	setupResponse(&w, r)
+	if (*r).Method == "OPTIONS" {
+		return
+	}
 
 	conn:= initDb()
 	
@@ -89,7 +104,8 @@ var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 			w.WriteHeader(400)
 			fmt.Println("Erro senha incorreta")
 		}else{
-			w.Write([]byte("Retornando token"))
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(user)
 			fmt.Println("Aqui retorna o token")
 		}
 
@@ -196,16 +212,41 @@ func initDb() *sql.DB{
 }
 
 
+var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+
+	token := jwt.New(jwt.SigningMethodHS256)
+	
+	claims := token.Claims.(jwt.MapClaims)
+	claims["admin"]=true
+	claims["name"]="Diogo Paza"
+	claims["exp"]=time.Now().Add(time.Hour * 24).Unix()
+	
+	tokenString, _ := token.SignedString(myKey)
+	w.Write([]byte(tokenString))
+
+
+})
+
+var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
+	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
+	  return myKey, nil
+	},
+	SigningMethod: jwt.SigningMethodHS256,
+})
 
 
 func main(){	
 	
-	r := mux.NewRouter()
+	router := mux.NewRouter()
+
+	allowedHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type"})
+    allowedOrigins := handlers.AllowedOrigins([]string{"*"})
+    allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
+
+	router.Handle("/users", jwtMiddleware.Handler(getUsers)).Methods("GET")
+	router.Handle("/login", jwtMiddleware.Handler(getLogin)).Methods("POST")
 	
-	http.Handle("/", r)
-	r.Handle("/users", getUsers).Methods("GET")
-	r.Handle("/login", getLogin).Methods("POST")
-	
-	http.ListenAndServe(":3000", nil)
+	http.ListenAndServe(":3000", handlers.CORS(allowedHeaders, allowedOrigins, allowedMethods)(router))
+	//http.ListenAndServe(":3000", nil)
 
 }
