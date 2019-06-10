@@ -111,42 +111,6 @@ var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
 	}
 
-	//var count int
-	/*
-	var u Users
-	
-	r.ParseForm()
-	name := r.Form["user"]
-	password := r.Form["password"]
-	u.NAME = name
-	u.PASSWORD = password
-	fmt.Println(name)
-	fmt.Println(password)
-	*/
-	//rowsCount, err:= connecting.Query("SELECT COUNT(*) as count FROM public.user WHERE id=6")
-	
-	//defer rowsCount.Close();
-
-	/*
-	if err != nil{
-			w.Header().Set("Content-Type","application/json; charset=UTF-8")
-			w.WriteHeader(400)
-			fmt.Println("Erro")
-		}
-
-
-
-	for rowsCount.Next(){
-		err:= rowsCount.Scan(&count)
-		if err != nil{
-			w.Header().Set("Content-Type","application/json; charset=UTF-8")
-			w.WriteHeader(400)
-		}
-	}
-	*/
-
-	
-
 })
 
 func returnArrayUsers(connecting *sql.DB) ([]Users,error) {
