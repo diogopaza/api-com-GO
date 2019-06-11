@@ -211,7 +211,8 @@ func main(){
 	router.Handle("/users", jwtMiddleware.Handler(getUsers)).Methods("GET")
 	router.Handle("/login", jwtMiddleware.Handler(getLogin)).Methods("POST")
 	
+	fmt.Println("Rodando na 3000")
 	http.ListenAndServe(":3000", handlers.CORS(allowedHeaders, allowedOrigins, allowedMethods)(router))
-	//http.ListenAndServe(":3000", nil)
+	
 
 }
