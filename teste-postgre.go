@@ -204,9 +204,10 @@ func main(){
 	router := mux.NewRouter()
 
 	allowedHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type"})
-    allowedOrigins := handlers.AllowedOrigins([]string{"*"})
-    allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
+  allowedOrigins := handlers.AllowedOrigins([]string{"*"})
+  allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
 
+	router.Handle("/token", getTokenHandler).Methods("GET")	
 	router.Handle("/users", jwtMiddleware.Handler(getUsers)).Methods("GET")
 	router.Handle("/login", jwtMiddleware.Handler(getLogin)).Methods("POST")
 	
