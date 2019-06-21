@@ -7,11 +7,13 @@ import(
 	"net/http"
 	"encoding/json"
 	_ "github.com/lib/pq" //postgresql
-	"github.com/auth0/go-jwt-middleware"
+	
 	"github.com/gorilla/mux"
 	"github.com/gorilla/handlers"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/auth0/go-jwt-middleware"
 	"time"
+	"strings"
 	
 )
 
@@ -38,6 +40,25 @@ const(
 )
 
 var getUsers = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+	
+	
+	
+	//uma forma de pegar o authorization bearer
+	/*
+	var token string
+	tokens, ok := r.Header["Authorization"]
+        if ok && len(tokens) >= 1 {
+            token = tokens[0]
+					  token = strings.TrimPrefix(token, "Bearer XX")
+				    TokenSplit := strings.Split(token, ".")
+					 fmt.Println(TokenSplit[2])
+				}
+	*/
+	auth := r.Header.Get("Authorization")
+	fmt.Println(auth)
+	TokenSplit := strings.Split(auth, ".")
+	fmt.Println("Authorization: ", TokenSplit[2])
+	
 
 	connectingDB:= initDb()
 	myUsers,err := returnArrayUsers(connectingDB)
@@ -53,19 +74,9 @@ var getUsers = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
 })
 
-func setupResponse(w *http.ResponseWriter, req *http.Request) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-    (*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-    (*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-}
-
 var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
-	fmt.Println("ENTREI LOGIN")
-	setupResponse(&w, r)
-	if (*r).Method == "OPTIONS" {
-		return
-	}
+	fmt.Println("Teste: %v", r)
 
 	conn:= initDb()
 	
@@ -105,8 +116,18 @@ var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 			fmt.Println("Erro senha incorreta")
 		}else{
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(user)
-			fmt.Println("Aqui retorna o token")
+			
+			myToken:= getToken(user)
+			TokenSplit := strings.Split(myToken, ".")
+			fmt.Println("Split: ", TokenSplit[2])
+			
+			var m = make(map[string]string)
+			m["token"]=myToken
+
+			saveToken(conn, TokenSplit[2], user.ID)
+			json.NewEncoder(w).Encode(m)
+
+			
 		}
 
 	}
@@ -176,40 +197,91 @@ func initDb() *sql.DB{
 }
 
 
-var getTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+func getToken(u Users) string{
 
 	token := jwt.New(jwt.SigningMethodHS256)
 	
 	claims := token.Claims.(jwt.MapClaims)
 	claims["admin"]=true
-	claims["name"]="Diogo Paza"
+	claims["id"]= u.ID
+	claims["name"]= u.NAME
 	claims["exp"]=time.Now().Add(time.Hour * 24).Unix()
 	
 	tokenString, _ := token.SignedString(myKey)
-	w.Write([]byte(tokenString))
+	
+	return tokenString
+
+}
+
+func middlewareJWT( h http.HandlerFunc ) http.HandlerFunc{
+	return func(w http.ResponseWriter, r *http.Request){
+		
+		auth := r.Header.Get("Authorization")
+		fmt.Println(auth)
+		TokenSplit := strings.Split(auth, ".")
+		fmt.Println("Authorization: ", TokenSplit[2])
+		
+	
+
+		h.ServeHTTP(w,r)
+	
+		
+	}
+}
 
 
-})
-
-var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
+var middlewareJWT1 = jwtmiddleware.New(jwtmiddleware.Options{
 	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-	  return myKey, nil
+		
+		return myKey, nil
 	},
 	SigningMethod: jwt.SigningMethodHS256,
 })
 
 
+var setupResponse = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+    w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+})
+
+func saveToken(conn *sql.DB, signatureToken string, id string){
+
+	sqlQuery := "UPDATE public.user SET token=$2 WHERE id=$1"
+	_ ,err := conn.Exec(sqlQuery, id, signatureToken)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Token atualizado com sucesso")
+
+}  
+/*
+func signedToken(){
+
+	connectingDB:= initDb()
+	rows, err := connecting.Query("SELECT * FROM public.user")
+	if err != nil{
+		return nil, err
+	}
+
+
+
+} 
+*/
+
 func main(){	
 	
 	router := mux.NewRouter()
 
-	allowedHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type"})
+	allowedHeaders := handlers.AllowedHeaders([]string{"Cache-Control","X-Requested-With", "Accept", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization"})
   allowedOrigins := handlers.AllowedOrigins([]string{"*"})
   allowedMethods := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
 
-	router.Handle("/token", getTokenHandler).Methods("GET")	
-	router.Handle("/users", jwtMiddleware.Handler(getUsers)).Methods("GET")
-	router.Handle("/login", jwtMiddleware.Handler(getLogin)).Methods("POST")
+	//router.Handle("/login", setupResponse).Methods("OPTIONS")
+	router.Handle("/users", middlewareJWT(getUsers)).Methods("GET")
+	router.Handle("/login", getLogin).Methods("POST")
+	
 	
 	fmt.Println("Rodando na 3000")
 	http.ListenAndServe(":3000", handlers.CORS(allowedHeaders, allowedOrigins, allowedMethods)(router))
