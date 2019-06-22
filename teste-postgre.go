@@ -11,13 +11,15 @@ import(
 	"github.com/gorilla/mux"
 	"github.com/gorilla/handlers"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/auth0/go-jwt-middleware"
+	
 	"time"
 	"strings"
 	
 )
 
 var myKey = []byte("secret")
+var login string
+var password string
 
 type Users struct{
 
@@ -54,11 +56,6 @@ var getUsers = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 					 fmt.Println(TokenSplit[2])
 				}
 	*/
-	auth := r.Header.Get("Authorization")
-	fmt.Println(auth)
-	TokenSplit := strings.Split(auth, ".")
-	fmt.Println("Authorization: ", TokenSplit[2])
-	
 
 	connectingDB:= initDb()
 	myUsers,err := returnArrayUsers(connectingDB)
@@ -215,29 +212,43 @@ func getToken(u Users) string{
 
 func middlewareJWT( h http.HandlerFunc ) http.HandlerFunc{
 	return func(w http.ResponseWriter, r *http.Request){
-		
+		/*
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			return []byte("secret"), nil
+		})
+		if err != nil{
+			fmt.Println("Erro")
+		}else{
+			fmt.Println(token)
+		}
+		*/
+
+		for k,v := range r.Header{
+			fmt.Fprintf(w, "Header field %q, Value %q\n", k, v )
+		}
+
 		auth := r.Header.Get("Authorization")
 		fmt.Println(auth)
 		TokenSplit := strings.Split(auth, ".")
-		fmt.Println("Authorization: ", TokenSplit[2])
+		TokenSplitFinal := strings.Split(TokenSplit[0], " ")
+		fmt.Println("1== ", TokenSplitFinal[1])
 		
-	
-
 		h.ServeHTTP(w,r)
 	
 		
 	}
 }
 
-
-var middlewareJWT1 = jwtmiddleware.New(jwtmiddleware.Options{
+//middleware antigo
+/*
+var middlewareJWT = jwtmiddleware.New(jwtmiddleware.Options{
 	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
 		
 		return myKey, nil
 	},
 	SigningMethod: jwt.SigningMethodHS256,
 })
-
+*/
 
 var setupResponse = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
@@ -256,19 +267,21 @@ func saveToken(conn *sql.DB, signatureToken string, id string){
 	fmt.Println("Token atualizado com sucesso")
 
 }  
-/*
-func signedToken(){
 
+func signedToken(login string, password string){
+
+	/*
 	connectingDB:= initDb()
-	rows, err := connecting.Query("SELECT * FROM public.user")
+	rows, err := connecting.Query("SELECT token FROM public.user")
 	if err != nil{
 		return nil, err
 	}
-
+	*/
+	fmt.Printf("user: %s and password: %s", login, password)
 
 
 } 
-*/
+
 
 func main(){	
 	
@@ -281,6 +294,7 @@ func main(){
 	//router.Handle("/login", setupResponse).Methods("OPTIONS")
 	router.Handle("/users", middlewareJWT(getUsers)).Methods("GET")
 	router.Handle("/login", getLogin).Methods("POST")
+
 	
 	
 	fmt.Println("Rodando na 3000")
