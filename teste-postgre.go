@@ -7,19 +7,20 @@ import(
 	"net/http"
 	"encoding/json"
 	_ "github.com/lib/pq" //postgresql
-	
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/handlers"
 	"github.com/dgrijalva/jwt-go"
-	
+	"github.com/mitchellh/mapstructure"
 	"time"
 	"strings"
+	
 	
 )
 
 var myKey = []byte("secret")
-var login string
-var password string
+var loginGlobal string
+var passwordGlobal string
 
 type Users struct{
 
@@ -43,20 +44,6 @@ const(
 
 var getUsers = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 	
-	
-	
-	//uma forma de pegar o authorization bearer
-	/*
-	var token string
-	tokens, ok := r.Header["Authorization"]
-        if ok && len(tokens) >= 1 {
-            token = tokens[0]
-					  token = strings.TrimPrefix(token, "Bearer XX")
-				    TokenSplit := strings.Split(token, ".")
-					 fmt.Println(TokenSplit[2])
-				}
-	*/
-
 	connectingDB:= initDb()
 	myUsers,err := returnArrayUsers(connectingDB)
 	if err != nil{
@@ -73,8 +60,6 @@ var getUsers = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
 var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
-	fmt.Println("Teste: %v", r)
-
 	conn:= initDb()
 	
 	var user Users
@@ -83,13 +68,13 @@ var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 	if erro != nil{
 		panic(erro)
 	}
-	login := r.FormValue("login")
-	password:= r.FormValue("password")
-	fmt.Println("Variavel do POST: ", login) 
+	loginGlobal := r.FormValue("login")
+	passwordGlobal := r.FormValue("password")
+	fmt.Println("Variavel do POST: ", loginGlobal) 
 	
 	sqlQuery := "SELECT id, name, password FROM public.USER WHERE name=$1"
 
-	row := conn.QueryRow(sqlQuery, login)
+	row := conn.QueryRow(sqlQuery, loginGlobal)
 
 	err := row.Scan(&user.ID, &user.NAME, &user.PASSWORD)
 
@@ -107,7 +92,7 @@ var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 		fmt.Println("NAME:"+user.NAME)
 		fmt.Println("PASSWORD:"+user.PASSWORD)
 
-		if(password!=user.PASSWORD){
+		if(passwordGlobal != user.PASSWORD){
 			w.Header().Set("Content-Type","application/json; charset=UTF-8")
 			w.WriteHeader(400)
 			fmt.Println("Erro senha incorreta")
@@ -202,6 +187,7 @@ func getToken(u Users) string{
 	claims["admin"]=true
 	claims["id"]= u.ID
 	claims["name"]= u.NAME
+	claims["password"]= u.PASSWORD
 	claims["exp"]=time.Now().Add(time.Hour * 24).Unix()
 	
 	tokenString, _ := token.SignedString(myKey)
@@ -210,45 +196,47 @@ func getToken(u Users) string{
 
 }
 
-func middlewareJWT( h http.HandlerFunc ) http.HandlerFunc{
+func middlewareJWT( h http.HandlerFunc ) (http.HandlerFunc){
 	return func(w http.ResponseWriter, r *http.Request){
-		/*
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		
+		var user Users
+		//pega os dados do Header
+		auth := r.Header.Get("Authorization")		
+		tokenString := strings.Split(auth, " ")	
+		tokenSplit := strings.Split(tokenString[1], ".")
+		fmt.Println(tokenSplit[2])
+				
+		//verifica se o token existe e se é válido e se a chave de autenticação está correta
+		token, err := jwt.Parse(tokenString[1], func(token *jwt.Token) (interface{}, error) {
 			return []byte("secret"), nil
 		})
 		if err != nil{
-			fmt.Println("Erro")
+			 json.NewEncoder(w).Encode("Invalid authorization token")
+			 return 
+
 		}else{
-			fmt.Println(token)
-		}
-		*/
+				
+		  //pega nome de usuário que é único no banco de dados
+			claims:= token.Claims.(jwt.MapClaims)
+			mapstructure.Decode(claims, &user)
+			signedTokenLocalBank := signedToken(user.NAME)
 
-		for k,v := range r.Header{
-			fmt.Fprintf(w, "Header field %q, Value %q\n", k, v )
-		}
+			fmt.Println(signedTokenLocalBank)
+			if signedTokenLocalBank == tokenSplit[2]{
+				h.ServeHTTP(w,r)
+			}else{
+				json.NewEncoder(w).Encode("token nao corresponde")
+			}
+			
+		}		
+			
+	
 
-		auth := r.Header.Get("Authorization")
-		fmt.Println(auth)
-		TokenSplit := strings.Split(auth, ".")
-		TokenSplitFinal := strings.Split(TokenSplit[0], " ")
-		fmt.Println("1== ", TokenSplitFinal[1])
 		
-		h.ServeHTTP(w,r)
 	
 		
 	}
 }
-
-//middleware antigo
-/*
-var middlewareJWT = jwtmiddleware.New(jwtmiddleware.Options{
-	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-		
-		return myKey, nil
-	},
-	SigningMethod: jwt.SigningMethodHS256,
-})
-*/
 
 var setupResponse = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
@@ -258,7 +246,7 @@ var setupResponse = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request
 })
 
 func saveToken(conn *sql.DB, signatureToken string, id string){
-
+	
 	sqlQuery := "UPDATE public.user SET token=$2 WHERE id=$1"
 	_ ,err := conn.Exec(sqlQuery, id, signatureToken)
 	if err != nil {
@@ -268,17 +256,33 @@ func saveToken(conn *sql.DB, signatureToken string, id string){
 
 }  
 
-func signedToken(login string, password string){
+func signedToken(name string) (token string){
 
-	/*
+	var userToken string
+
 	connectingDB:= initDb()
-	rows, err := connecting.Query("SELECT token FROM public.user")
+	sqlQuery := "SELECT token FROM public.user WHERE name=" + "'" + name + "'"
+	rows, err := connectingDB.Query(sqlQuery)
 	if err != nil{
-		return nil, err
+		fmt.Println("Erro ao consultar usuario no banco de dados")
+		return 
 	}
-	*/
-	fmt.Printf("user: %s and password: %s", login, password)
+	
+	for rows.Next(){
 
+		err = rows.Scan(&token)
+		if err != nil{
+			fmt.Println("Erro ao percorrer no banco de dados")
+			return 
+		}
+
+		userToken = token
+	
+	
+
+	}
+	
+	return userToken
 
 } 
 
