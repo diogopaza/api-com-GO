@@ -46,8 +46,10 @@ const(
 
 var getUsers = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 	
-	connectingDB:= initDb()
+	connectingDB := initDb()
+	
 	myUsers,err := returnArrayUsers(connectingDB)
+	
 	if err != nil{
 		w.Header().Set("Content-Type","application/json; charset=UTF-8")
 		w.WriteHeader(400)
@@ -119,9 +121,10 @@ var getLogin = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 })
 
 func returnArrayUsers(connecting *sql.DB) ([]Users,error) {
-
+	fmt.Println("estou returnUsers")
 	rows, err := connecting.Query("SELECT * FROM public.user")
 	if err != nil{
+		fmt.Println("Não foi pesquisar usuários")
 		return nil, err
 	}
 
@@ -136,7 +139,7 @@ func returnArrayUsers(connecting *sql.DB) ([]Users,error) {
 	res :=[]Users{}
 
 	for rows.Next(){
-		
+		fmt.Println(" next usuários")
 		err = rows.Scan(&id,&login,&name,&password,&token,&profile_id)
 		if err != nil{
 			return nil,err
@@ -153,7 +156,7 @@ func returnArrayUsers(connecting *sql.DB) ([]Users,error) {
 	
 	
 	}
-		
+		fmt.Println("users:",res)
 		return res, nil
 
 
@@ -190,7 +193,7 @@ func getToken(u Users) string{
 	claims["id"]= u.ID
 	claims["name"]= u.NAME
 	claims["password"]= u.PASSWORD
-	claims["exp"]=time.Now().Add(time.Hour * 24).Unix()
+	claims["exp"]=time.Now().Add(time.Minute * 45).Unix()
 	
 	tokenString, _ := token.SignedString(myKey)
 	
@@ -307,8 +310,7 @@ var searchName = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 	connectingDB:= initDb()
 
 	sqlQuery := `SELECT name FROM public.user WHERE name ILIKE '%' || $1 || '%' `  
-	fmt.Println(sqlQuery)
-	
+		
 	rows, err := connectingDB.Query(sqlQuery, campoPesquisa)
 	if err != nil {
 		fmt.Println("Erro ao percorrer dados")
@@ -342,8 +344,9 @@ for rows.Next(){
 			return 
 		}
 	}			
-  */ 
-		json.NewEncoder(w).Encode(usersName)
+	*/
+		w.Header().Set("Content-Type","application/json")
+	  json.NewEncoder(w).Encode(usersName)
 		
 })
 
