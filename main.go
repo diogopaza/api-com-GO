@@ -8,6 +8,10 @@ import(
 	"log"
 	"io/ioutil"
 	
+
+	
+	
+	
 )
 
 type User struct{
@@ -30,6 +34,11 @@ var users = []User{
 
 func getUser(w http.ResponseWriter, r *http.Request){
 
+	host := r.Header.Get("Referer")
+	fmt.Println(host)
+	
+	
+
 	json.NewEncoder(w).Encode(users)
 	
 
@@ -40,7 +49,7 @@ func createUser(w http.ResponseWriter, r *http.Request){
 	
 	var u User
 	
-	body, err:= ioutil.ReadAll(r.Body)
+	body, err:= ioutil.ReadAll(r.Body)	
 
 	if err != nil{
 		panic(err)

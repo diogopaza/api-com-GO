@@ -16,6 +16,8 @@ import(
 	"strings"
 	
 	
+	
+	
 )
 
 var myKey = []byte("secret")
@@ -211,7 +213,9 @@ func middlewareJWT( h http.HandlerFunc ) (http.HandlerFunc){
 			return []byte("secret"), nil
 		})
 		if err != nil{
-			 json.NewEncoder(w).Encode("Invalid authorization token")
+				w.Header().Set("Content-Type","application/json; charset=UTF-8")
+				w.WriteHeader(401)
+			  json.NewEncoder(w).Encode("Invalid authorization token")
 			 return 
 
 		}else{
@@ -225,6 +229,8 @@ func middlewareJWT( h http.HandlerFunc ) (http.HandlerFunc){
 			if signedTokenLocalBank == tokenSplit[2]{
 				h.ServeHTTP(w,r)
 			}else{
+				w.Header().Set("Content-Type","application/json; charset=UTF-8")
+				w.WriteHeader(401)
 				json.NewEncoder(w).Encode("token nao corresponde")
 			}
 			
@@ -286,6 +292,61 @@ func signedToken(name string) (token string){
 
 } 
 
+var searchName = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+
+
+	var usersName []string
+  var userName string
+
+	erro := r.ParseForm()
+	if erro != nil{
+		panic(erro)
+	}
+	campoPesquisa := r.FormValue("pesquisa")
+	
+	connectingDB:= initDb()
+
+	sqlQuery := `SELECT name FROM public.user WHERE name ILIKE '%' || $1 || '%' `  
+	fmt.Println(sqlQuery)
+	
+	rows, err := connectingDB.Query(sqlQuery, campoPesquisa)
+	if err != nil {
+		fmt.Println("Erro ao percorrer dados")
+}
+if rows == nil {
+	fmt.Println("Nenhuma informação localizada ")
+}
+
+for rows.Next(){
+	err := rows.Scan(&userName)
+	if err != nil{
+		fmt.Println("Erro ao indexar banco de dados")
+	}
+
+	usersName = append(usersName, userName)
+}
+
+/*
+	//pesquisa antiga no banco de dados sem parametros
+	rows, err := connectingDB.Query(sqlQuery)	
+	if err != nil{
+		fmt.Println("Erro ao consultar usuario no banco de dados")
+		return 
+	}	
+	for rows.Next(){
+
+		err = rows.Scan(&userName)
+		usersName = append(usersName, userName)
+		if err != nil{
+			fmt.Println("Erro ao percorrer no banco de dados")
+			return 
+		}
+	}			
+  */ 
+		json.NewEncoder(w).Encode(usersName)
+		
+})
+
 
 func main(){	
 	
@@ -298,6 +359,7 @@ func main(){
 	//router.Handle("/login", setupResponse).Methods("OPTIONS")
 	router.Handle("/users", middlewareJWT(getUsers)).Methods("GET")
 	router.Handle("/login", getLogin).Methods("POST")
+	router.Handle("/search-name", middlewareJWT(searchName)).Methods("POST")
 
 	
 	
